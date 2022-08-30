@@ -5,7 +5,7 @@ uintptr_t Memory::MODULE_END = 0x0;
 
 void Memory::initialize() {
 	Memory::MODULE_START = (uintptr_t)GetModuleHandleA(nullptr); // "bedrock_server_mod.exe"
-  if (Memory::MODULE_START > 0x0) {
+	if (Memory::MODULE_START > 0x0) {
 		MODULEINFO modInfo;
 		GetModuleInformation(GetCurrentProcess(), (HMODULE)Memory::MODULE_START, &modInfo, sizeof(modInfo));
 		Memory::MODULE_END = (Memory::MODULE_START + modInfo.SizeOfImage);
