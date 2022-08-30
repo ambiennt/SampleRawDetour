@@ -8,20 +8,22 @@
 #include <base/base.h>
 #include <base/playerdb.h>
 #include <base/log.h>
-
 #include <Actor/ServerPlayer.h>
 
-namespace mem {
+using signature_t = std::vector<std::optional<uint8_t>>;
+using func_t = void(__cdecl*)(ServerPlayer*, Packet &);
+extern func_t original_ServerPlayer_sendNetworkPacket;
+void detour_TestFunc(ServerPlayer *self, Packet &pkt);
 
-extern uintptr_t MODULE_BASE;
+namespace Memory {
+
+extern uintptr_t MODULE_START;
 extern uintptr_t MODULE_END;
 
 void initialize();
-uintptr_t findSignatureDefault(const std::vector<int16_t> &bytes);
+uintptr_t findSignature(const signature_t &signature);
 
-} // namespace mem
-
-void detour_TestFunc(ServerPlayer *self, Packet &pkt);
+} // namespace Memory
 
 
 

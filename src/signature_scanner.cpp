@@ -1,42 +1,40 @@
 #include "main.h"
 
-uintptr_t mem::MODULE_BASE = 0;
-uintptr_t mem::MODULE_END = 0;
+uintptr_t Memory::MODULE_START = 0x0;
+uintptr_t Memory::MODULE_END = 0x0;
 
-void mem::initialize() {
-	mem::MODULE_BASE = (uintptr_t)GetModuleHandleA(nullptr);
-	MODULEINFO modinfo;
-	GetModuleInformation(GetCurrentProcess(), (HMODULE)mem::MODULE_BASE, &modinfo, sizeof(MODULEINFO));
-	mem::MODULE_END = mem::MODULE_BASE + modinfo.SizeOfImage;
+void Memory::initialize() {
+	Memory::MODULE_START = (uintptr_t)GetModuleHandleA(nullptr); // "bedrock_server_mod.exe"
+  if (Memory::MODULE_START > 0x0) {
+		MODULEINFO modInfo;
+		GetModuleInformation(GetCurrentProcess(), (HMODULE)Memory::MODULE_START, &modInfo, sizeof(modInfo));
+		Memory::MODULE_END = (Memory::MODULE_START + modInfo.SizeOfImage);
+	}
 }
 
-uintptr_t mem::findSignatureDefault(const std::vector<int16_t>& bytes) {
-	
-	if (bytes.size() <= 1) { return 0; }
+uintptr_t Memory::findSignature(const signature_t& signature) {
 
-	uint16_t patternSize = (uint16_t)bytes.size();
-	uint16_t matchLength = (patternSize - 1);
-	const int16_t* sig = bytes.data();
-	uintptr_t scanSpan = (mem::MODULE_END - patternSize);
+	if (signature.empty()) { return 0x0; }
 
-	for (uintptr_t pCur = mem::MODULE_BASE; pCur < scanSpan; pCur++) {
+	auto it = reinterpret_cast<uint8_t*>(Memory::MODULE_START);
+	const auto scanEnd = reinterpret_cast<uint8_t*>(Memory::MODULE_END);
+	size_t sigSize = signature.size();
 
-		if (*(int8_t*)pCur == (int8_t)sig[0]) { // if first opcode matches
-			
-			if (*(int8_t*)(pCur + matchLength) == (int8_t)sig[matchLength]) { // if last opcode matches
-
-				for (uint16_t gamer = 1; gamer < patternSize; gamer++) { // we already checked first sig opcode above so lets start at 1
-
-					if (sig[gamer] == -1) continue; // -1 in the bytes vector is considered a wildcard
-
-					if (*(int8_t*)(pCur + gamer) == (int8_t)sig[gamer]) {
-						if (gamer == matchLength) { return pCur; }
-						else continue;
-					}
-					else break;
-				}
+	while (it < scanEnd) {
+		it = std::find(it, scanEnd, signature.front());
+		if (it == scanEnd) break;
+		auto matchEnd = reinterpret_cast<uint8_t*>((uintptr_t)it + sigSize);
+		auto currentPossibleMatch = std::search(
+			it, matchEnd,
+			signature.cbegin(), signature.cend(),
+			[](uint8_t exeOpcode, std::optional<uint8_t> sigOpcode) -> bool {
+				return (!sigOpcode.has_value() || (sigOpcode.value() == exeOpcode));
 			}
+		);
+		if (currentPossibleMatch != matchEnd) {
+			return (uintptr_t)currentPossibleMatch;
 		}
+		it++; // we want to search from the byte after the signature.front() match
 	}
-	return 0;
+	return 0x0;
 }
